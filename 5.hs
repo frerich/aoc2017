@@ -1,21 +1,21 @@
+import qualified Data.Vector.Unboxed as V
 import Data.List (unfoldr)
 
-data Zipper a = Zipper [a] [a] deriving Show
+data Memory = Memory Int (V.Vector Int) deriving Show
 
-parse :: String -> Zipper Int
-parse = Zipper [] . map read . lines
+parse :: String -> Memory
+parse s = Memory 0 (V.fromList . map read . lines $ s)
 
-step :: (Int -> Int) -> Zipper Int -> Maybe (Zipper Int)
-step adjust (Zipper ls rs@(r:rx))
-    | r < 0 = if abs r > length ls
-                then Nothing
-                else let rs' = adjust r : rx in Just $ Zipper (drop (abs r) ls) (reverse (take (abs r) ls) ++ rs')
-    | r >= 0 = if r + 1 > length rs
-                then Nothing
-                else let rs' = adjust r : rx in Just $ Zipper (reverse (take r rs') ++ ls) (drop r rs')
+step :: (Int -> Int) -> Memory -> Maybe Memory
+step adjust (Memory pos mem) =
+    if val < 0 && pos + val >= 0 || val >= 0 && pos + val < V.length mem
+      then Just $ Memory (pos + val) (mem V.// [(pos, adjust val)])
+      else Nothing
+  where
+    val = mem V.! pos
 
-walk :: (Int -> Int) -> Zipper Int -> [Zipper Int]
-walk adjust z = z : unfoldr (\x -> case step adjust x of Nothing -> Nothing; Just x' -> Just (x', x')) z
+walk :: (Int -> Int) -> Memory -> [Memory]
+walk adjust m = m : unfoldr (\x -> case step adjust x of Just m' -> Just (m', m'); Nothing -> Nothing) m
 
 partOne :: String -> Int
 partOne = length . walk (+1) . parse
