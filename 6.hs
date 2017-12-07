@@ -1,44 +1,48 @@
+import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Function (on)
-import Data.Ord (comparing)
-import Data.List (sortBy, groupBy)
 
-rotateBy :: Int -> [a] -> [a]
-rotateBy 1 (x:xs) = xs ++ [x]
-rotateBy n xs = take (length xs) (drop n (cycle xs))
+rotate :: Int -> [a] -> [a]
+rotate n xs = bs ++ as where (as, bs) = splitAt n xs
 
-distribute :: Int -> [(Int, Int)] -> [(Int, Int)]
-distribute _ [] = []
-distribute 0 xs = xs
-distribute n ((i,v):xs) = distribute (n - 1) (rotateBy 1 ((i,v+1):xs))
+distribute :: [Int] -> [Int]
+distribute [] = []
+distribute xs@(x:_) = zipWith (+) xs summands
+  where
+    summands
+        | x < length xs = (-x) : replicate x 1 ++ repeat 0
+        | otherwise     = let (q, r) = x `divMod` length xs in (q - x) : replicate r (q + 1) ++ repeat q
 
-selectBank :: [(Int, Int)] -> (Int, Int)
-selectBank = head . last . groupBy ((==) `on` snd) . sortBy (comparing snd)
+largestBankIdx :: [Int] -> Int
+largestBankIdx = fst . foldr1 (\(i,x) (j,y) -> if x >= y then (i,x) else (j,y)) . zip [0..]
 
 step :: [Int] -> [Int]
-step xs = let ((ri,rv):rr) = rotateBy maxBankIdx es in map snd . sortBy (comparing fst) $ distribute rv (rotateBy 1 ((ri,0):rr))
+step xs = rotate (length xs - maxBankIdx) . distribute . rotate maxBankIdx $ xs
   where
-    maxBankIdx = fst (selectBank es)
-    es = zip [0..] xs
+    maxBankIdx = largestBankIdx xs
 
-takeWhileUnseen :: Ord a => [a] -> (Maybe a, Set a)
+takeWhileUnseen :: Ord a => [a] -> Set a
 takeWhileUnseen = go Set.empty
   where
-    go seen (x:xs) = if x `Set.member` seen then (Just x, seen) else go (Set.insert x seen) xs
-    go seen _      = (Nothing, seen)
-
-parse :: String -> [Int]
-parse = map read . words
+    go seen (x:xs)
+        | x `Set.member` seen = seen
+        | otherwise           = go (Set.insert x seen) xs
+    go seen _      = seen
 
 partOne :: [Int] -> Int
-partOne = Set.size . snd . takeWhileUnseen . iterate step
+partOne = Set.size . takeWhileUnseen . iterate step
 
 partTwo :: [Int] -> Int
-partTwo xs = let [(i,_),(j,_)] = take 2 . filter (\(_,v) -> v == dupe) . zip [0..] $ steps in j - i
+partTwo = go Map.empty . zip [0..] . iterate step
   where
-    (Just dupe, _) = takeWhileUnseen steps
-    steps = iterate step xs
+    go seen ((i,x):xs) =
+        case Map.lookup x seen of
+            Just idx -> i - idx
+            Nothing  -> go (Map.insert x i seen) xs
+    go _ []            = -1
 
 main :: IO ()
-main = interact $ show . partTwo . parse
+main = do
+    input <- map read . words <$> getContents
+    print (partOne input)
+    print (partTwo input)

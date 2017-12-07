@@ -15,11 +15,14 @@ step adjust (pos, mem) =
   where
     val = mem V.! pos
 
-partOne :: String -> Int
-partOne = length . takeWhile (not . V.null . snd) . iterate (step (+1)) . parse
+partOne :: Memory -> Int
+partOne = length . takeWhile (not . V.null . snd) . iterate (step (+1))
 
-partTwo :: String -> Int
-partTwo = length . takeWhile (not . V.null . snd) . iterate (step (\x -> if x >= 3 then x - 1 else x + 1)) . parse
+partTwo :: Memory -> Int
+partTwo = length . takeWhile (not . V.null . snd) . iterate (step (\x -> if x >= 3 then x - 1 else x + 1))
 
 main :: IO ()
-main = interact $ show . partOne . parse
+main = do
+    input <- parse <$> getContents
+    print (partOne input)
+    print (partTwo input)

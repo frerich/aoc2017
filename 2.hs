@@ -13,5 +13,8 @@ partTwo :: Spreadsheet -> Int
 partTwo = sum . map (\row -> let (x,y) = head (evenlyDivisible row) in x `div` y)
 
 main :: IO ()
-main = interact $ show . partTwo . parse
+main = do
+    input <- parse <$> getContents
+    print (partOne input)
+    print (partTwo input)
 
