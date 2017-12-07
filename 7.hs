@@ -1,5 +1,4 @@
-import Data.Function (on)
-import Data.List (sortBy, groupBy, sort, group)
+import Data.List (sortBy, sort, group, find)
 import Data.Maybe (fromJust)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -33,9 +32,11 @@ partTwo m = let (unbalancedName:parentOfUnbalanced:_) = go (partOne m) []
                 [(uncommonValue, _), (commonValue, _)] = sortBy (comparing snd) . rle . map totalWeight . above $ parentOfUnbalanced
              in weight unbalancedName + (commonValue - uncommonValue)
   where
-    go s acc = let as = above s in case filter ((== 1) . length) . groupBy ((==) `on` snd) . sortBy (comparing snd) . zip as . map totalWeight $ as of
-                 [[(unbalancedName, _)]] -> go unbalancedName (unbalancedName : acc)
-                 _                       -> acc
+    go s acc = let aboves = above s
+                   totalWeights = map totalWeight aboves
+                in case find ((== 1) . snd) . rle $ totalWeights of
+                        Just (w, 1) -> go name (name : acc) where Just (name, _) = find ((== w) . snd) (zip aboves totalWeights)
+                        _           -> acc
 
     above s = let (_, rs) = fromJust (Map.lookup s m) in rs
     weight s = let (w, _) = fromJust (Map.lookup s m) in w
