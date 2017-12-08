@@ -1,13 +1,14 @@
-import Debug.Trace (trace)
-import Text.Parsec
+import Data.List (foldl')
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Debug.Trace (trace)
 
-data Relation = RelLT | RelGT | RelEQ | RelNE | RelLE | RelGE deriving Show
+import Text.Parsec
+type Relation = Int -> Int -> Bool
 type Register = String
-data Condition = Condition Register Relation Int deriving Show
-data Operation = Inc | Dec deriving Show
-data Instruction = Instruction Register Operation Int Condition deriving Show
+data Condition = Condition Register Relation Int
+type Operation = Int -> Int -> Int
+data Instruction = Instruction Register Operation Int Condition
 type Program = [Instruction]
 
 type Memory = Map Register Int
@@ -18,69 +19,42 @@ parseInput input = case parse program "" input of
     Right p -> p
   where
     program = instruction `sepEndBy` newline
-    instruction = do
-        reg <- register
-        op <- operation
-        arg <- int
-        string " if "
-        cond <- condition
-        return (Instruction reg op arg cond)
+    instruction = Instruction <$> register <*> operation <*> int <*> (string " if " *> condition)
     int = do
         sign <- option id (char '-' >> return negate)
         digits <- read <$> many1 digit
         return (sign digits)
     register = many1 lower
-    operation = (try (string " inc ") >> return Inc)
-             <|> (try (string " dec ") >> return Dec)
+    operation = (try (string " inc ") >> return (+))
+             <|> (try (string " dec ") >> return (-))
     condition = Condition <$> register <*> relation <*> int
-    relation = (try (string " < ") >> return RelLT)
-             <|> (try (string " > ") >> return RelGT)
-             <|> (try (string " == ") >> return RelEQ)
-             <|> (try (string " != ") >> return RelNE)
-             <|> (try (string " <= ") >> return RelLE)
-             <|> (try (string " >= ") >> return RelGE)
+    relation = (try (string " < ") >> return (<))
+             <|> (try (string " > ") >> return (>))
+             <|> (try (string " == ") >> return (==))
+             <|> (try (string " != ") >> return (/=))
+             <|> (try (string " <= ") >> return (<=))
+             <|> (try (string " >= ") >> return (>=))
 
-relFn :: Ord a => Relation -> (a -> a -> Bool)
-relFn rel = case rel of
-    RelLT -> (<)
-    RelGT -> (>)
-    RelEQ -> (==)
-    RelNE -> (/=)
-    RelLE -> (<=)
-    RelGE -> (>=)
-
-opFn :: Num a => Operation -> (a -> a -> a)
-opFn op = case op of
-    Inc -> (+)
-    Dec -> (-)
-
-condHolds :: Condition -> Memory -> Bool
-condHolds (Condition reg rel val) mem = (relFn rel) (get reg mem) val
-
-get :: Register -> Memory -> Int
-get reg mem = Map.findWithDefault 0 reg mem
-
-put :: Register -> Int -> Memory -> Memory
-put reg val mem = Map.insert reg val mem
+holds :: Condition -> Memory -> Bool
+holds (Condition reg rel val) mem = rel (Map.findWithDefault 0 reg mem) val
 
 exec :: Instruction -> Memory -> Memory
 exec (Instruction reg op val cond) mem
-    | condHolds cond mem = put reg ((opFn op) (get reg mem) val) mem
-    | otherwise          = mem
+    | cond `holds` mem = let val' = op (Map.findWithDefault 0 reg mem) val in Map.insert reg val' mem
+    | otherwise        = mem
+
+maxRegisterVal :: Memory -> Int
+maxRegisterVal = maximum . Map.elems
 
 partOne :: Program -> Int
-partOne p = maximum (Map.elems (run p Map.empty))
+partOne p = maxRegisterVal (run Map.empty p)
   where
-    run :: Program -> Memory -> Memory
-    run [] mem = mem
-    run (i:is) mem = run is (exec i mem)
+    run = foldl' (flip exec)
 
 partTwo :: Program -> Int
-partTwo p = snd (run p (Map.empty, 0))
+partTwo p = snd (run (Map.empty, 0) p)
   where
-    run :: Program -> (Memory, Int) -> (Memory, Int)
-    run [] acc = acc
-    run (i:is) (mem, maxVal) = let mem' = exec i mem in run is (mem', max (maximum (Map.elems mem')) maxVal)
+    run = foldl' (\(mem, maxVal) i -> let mem' = exec i mem in (mem', max maxVal (maxRegisterVal mem')))
 
 main :: IO ()
 main = do
