@@ -2,15 +2,14 @@ import Data.List (foldl')
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Debug.Trace (trace)
-
 import Text.Parsec
+
 type Relation = Int -> Int -> Bool
 type Register = String
 data Condition = Condition Register Relation Int
 type Operation = Int -> Int -> Int
 data Instruction = Instruction Register Operation Int Condition
 type Program = [Instruction]
-
 type Memory = Map Register Int
 
 parseInput :: String -> Program
