@@ -1,17 +1,21 @@
+import Data.Maybe (catMaybes)
 import Text.Parsec
 import Text.Parsec.String
 
 data Group = Group [Group] | Garbage String deriving Show
 
-unescapedChar :: Parser Char
+unescapedChar :: Parser (Maybe Char)
 unescapedChar = do
     ch <- anyChar
     if ch == '!'
-    then anyChar >> return '!'
-    else return ch
+    then anyChar >> return Nothing
+    else return (Just ch)
 
 garbage :: Parser Group
-garbage = Garbage <$> (char '<' *> unescapedChar `manyTill` char '>')
+garbage = do
+    char '<'
+    s <- catMaybes <$> unescapedChar `manyTill` char '>'
+    return (Garbage s)
 
 group :: Parser Group
 group = Group <$> between (char '{') (char '}') ((garbage <|> group) `sepBy` char ',')
@@ -29,7 +33,7 @@ score = go 1
 
 garbageLen :: Group -> Int
 garbageLen (Group xs)  = sum (map garbageLen xs)
-garbageLen (Garbage s) = length (filter (/= '!') s)
+garbageLen (Garbage s) = length s
 
 main :: IO ()
 main = do
