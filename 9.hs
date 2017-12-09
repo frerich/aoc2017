@@ -12,10 +12,7 @@ unescapedChar = do
     else return (Just ch)
 
 garbage :: Parser Group
-garbage = do
-    char '<'
-    s <- catMaybes <$> unescapedChar `manyTill` char '>'
-    return (Garbage s)
+garbage = Garbage . catMaybes <$> (char '<' *> unescapedChar `manyTill` char '>')
 
 group :: Parser Group
 group = Group <$> between (char '{') (char '}') ((garbage <|> group) `sepBy` char ',')
