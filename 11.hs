@@ -11,11 +11,7 @@ move (x, y) s = case s of
     _    -> (x,     y)
 
 distance :: (Int, Int) -> Int
-distance (x, y)
-    | ax > ay * 2 = (ax - ay * 2) `div` 2 + ay                  -- more to the right
-    | otherwise   = ax `div` 2 + (ay - ax `div` 2) `div` 2      -- more to the bottom
-  where
-    (ax, ay) = (abs x, abs y)
+distance (x, y) = if abs x > abs y * 2 then abs x `div` 2 else abs y `div` 2
 
 partOne :: [String] -> Int
 partOne = distance . foldl move (0,0)
