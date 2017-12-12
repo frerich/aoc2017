@@ -16,7 +16,7 @@ members i m = go Set.empty i
   where
     go seen x = let unseen = fromJust (Map.lookup x m) `Set.difference` seen
                     seen' = Set.insert x seen
-                in Set.insert x seen `Set.union` Set.foldl Set.union Set.empty (Set.map (go seen') unseen)
+                in seen' `Set.union` Set.foldl Set.union Set.empty (Set.map (go seen') unseen)
 
 groups :: Map Int (Set Int) -> [Set Int]
 groups = go []
