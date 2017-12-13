@@ -12,8 +12,8 @@ topRowStates = transpose . map periodic
 severities :: [Int] -> [Int]
 severities = zipWith (*) [0..]
 
-collisions :: [Int] -> [Int]
-collisions ranges = map (\i -> topRowStates ranges !! i !! i) [0..length ranges - 1]
+collisions :: Int -> [[Int]] -> [Int]
+collisions n states = map (\i -> states !! i !! i) [0..n - 1]
 
 parse :: String -> Map Int Int
 parse = Map.fromList . map parseLine . lines
@@ -26,13 +26,10 @@ expand m
     | otherwise  = map (\i -> Map.findWithDefault 0 i m) [0..maximum (Map.keys m)]
 
 partOne :: [Int] -> Int
-partOne ranges = sum (zipWith (*) (collisions ranges) (severities ranges))
-
-canPass :: [[Int]] -> Bool
-canPass states = all (== 0) (map (\i -> states !! i !! i) [0..length states - 1])
+partOne ranges = sum (zipWith (*) (collisions (length ranges) (topRowStates ranges)) (severities ranges))
 
 partTwo :: [Int] -> Int
-partTwo ranges = length . takeWhile (not . canPass . take (length ranges)) . tails . topRowStates $ ranges
+partTwo ranges = length . takeWhile (any (/= 0) . collisions (length ranges)) . tails . topRowStates $ ranges
 
 main :: IO ()
 main = do
