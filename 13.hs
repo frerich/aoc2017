@@ -1,38 +1,37 @@
-import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import Data.List (transpose, tails)
 
-periodic :: Int -> [Int]
-periodic 0 = repeat 0
-periodic n = cycle (1 : replicate (2 * (n - 1) - 1) 0)
+frequency :: Int -> Int
+frequency 1 = 1
+frequency n = 2 * (n - 1)
 
-topRowStates :: [Int] -> [[Int]]
-topRowStates = transpose . map periodic
-
-severities :: [Int] -> [Int]
-severities = zipWith (*) [0..]
-
-collisions :: Int -> [[Int]] -> [Int]
-collisions n states = map (\i -> states !! i !! i) [0..n - 1]
-
-parse :: String -> Map Int Int
-parse = Map.fromList . map parseLine . lines
+topRowState :: [Int] -> Int -> [Int]
+topRowState ranges picoSec = map stateAt ranges
   where
-    parseLine s = let [d, r] = words s in (read (init d), read r)
+    stateAt 0 = 0
+    stateAt range = if picoSec `mod` frequency range == 0 then 1 else 0
 
-expand :: Map Int Int -> [Int]
-expand m
-    | Map.null m = []
-    | otherwise  = map (\i -> Map.findWithDefault 0 i m) [0..maximum (Map.keys m)]
+collisionsAt :: [Int] -> Int -> [Int]
+collisionsAt ranges picoSec = zipWith (!!) states [0..length ranges - 1]
+   where
+     states = map (topRowState ranges) [picoSec..picoSec + length ranges]
+
+parse :: String -> [Int]
+parse s = map (\i -> Map.findWithDefault 0 i parsedMap) [0..maximum (Map.keys parsedMap)]
+  where
+    parsedMap = Map.fromList . map parseLine . lines $ s
+    parseLine l = let [d, r] = words l in (read (init d), read r)
 
 partOne :: [Int] -> Int
-partOne ranges = sum (zipWith (*) (collisions (length ranges) (topRowStates ranges)) (severities ranges))
+partOne ranges = sum (zipWith (*) collisions severities)
+  where
+    collisions = collisionsAt ranges 0
+    severities = zipWith (*) [0..] ranges
 
 partTwo :: [Int] -> Int
-partTwo ranges = length . takeWhile (any (/= 0) . collisions (length ranges)) . tails . topRowStates $ ranges
+partTwo ranges = head . filter (all (== 0) . collisionsAt ranges) $ [0..]
 
 main :: IO ()
 main = do
-    input <- expand . parse <$> getContents
+    input <- parse <$> getContents
     print (partOne input)
     print (partTwo input)
