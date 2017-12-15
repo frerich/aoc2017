@@ -1,14 +1,14 @@
 import Data.Bits ((.&.))
-import Data.Function (on)
 
 generator :: Int -> Int -> Int
 generator factor input = (input * factor) `rem` 2147483647
 
 equalPairs :: Int -> (Int -> Bool) -> (Int -> Bool) -> Int
-equalPairs numPairs predA predB = length . filter id . take numPairs $ zipWith ((==) `on` (.&. 0xffff)) (filter predA seqA) (filter predB seqB)
+equalPairs numPairs predA predB = length . filter sameLowWord . take numPairs $ zip (filter predA seqA) (filter predB seqB)
   where
     seqA = iterate (generator 16807) 883
     seqB = iterate (generator 48271) 879
+    sameLowWord (x,y) = x .&. 0xffff == y .&. 0xffff
 
 partOne :: Int
 partOne = equalPairs 40000000 (const True) (const True)
