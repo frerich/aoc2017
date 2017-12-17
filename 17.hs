@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 
 import qualified Data.Sequence as Seq
+import Data.List (foldl')
 
 main :: IO ()
 main = do
@@ -18,12 +19,9 @@ partOne step = let (xs, pos) = foldl go (Seq.singleton 0, 0) [1..2017]
     insertAt i x xs = let (as, bs) = Seq.splitAt i xs in as Seq.>< x Seq.<| bs
 
 partTwo :: Int -> Int
-partTwo step = go (0, 0, 0) 1
+partTwo step = snd (foldl' go (0, 0) [1..50000000])
   where
-    go (_,    _,        !valueAfterNull) 50000000  = valueAfterNull
-    go (!pos, !nullPos, !valueAfterNull) value     = go (pos', nullPos', valueAfterNull') (value + 1)
+    go (!pos, !val) x = (pos', val')
       where
-        pos' = (pos + step) `rem` value + 1
-        nullPos' = if pos' <= nullPos then nullPos + 1 else nullPos
-        valueAfterNull' = if pos' == nullPos + 1 then value else valueAfterNull
-
+        pos' = (pos + step) `rem` x + 1
+        val' = if pos' == 1 then x else val
