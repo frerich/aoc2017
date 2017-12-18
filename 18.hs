@@ -18,7 +18,7 @@ data Instruction
     | Add Char Operand
     | Mul Char Operand
     | Mod Char Operand
-    | Rcv Operand
+    | Rcv Char
     | Jgz Operand Operand
     deriving Show
 
@@ -41,7 +41,7 @@ parseProgram = either (error . show) id . parse program ""
     add = Add <$> (string "add " *> lower <* space) <*> operand
     mul = Mul <$> (string "mul " *> lower <* space) <*> operand
     mod = Mod <$> (string "mod " *> lower <* space) <*> operand
-    rcv = Rcv <$> (string "rcv " *> operand)
+    rcv = Rcv <$> (string "rcv " *> lower)
     jgz = Jgz <$> (string "jgz " *> operand <* space) <*> operand
     operand = register <|> number
     register = Register <$> lower
@@ -59,7 +59,7 @@ eval instr (Machine ip mem activity) =
         Add x y -> Machine (ip + 1) (Map.insert x (value (Register x) + value y)     mem) activity
         Mul x y -> Machine (ip + 1) (Map.insert x (value (Register x) * value y)     mem) activity
         Mod x y -> Machine (ip + 1) (Map.insert x (value (Register x) `rem` value y) mem) activity
-        Rcv x   -> if value x /= 0
+        Rcv x   -> if value (Register x) /= 0
                     then let Just (Play freq) = activity in Machine (ip + 1) mem (Just (Recover freq))
                     else Machine (ip + 1) mem activity
         Jgz x y -> if value x > 0
