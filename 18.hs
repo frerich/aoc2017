@@ -83,7 +83,31 @@ partOne program = go (Machine Seq.empty 0 Map.empty)
             then (Machine input (ip + 1) mem, Just (Recover (Seq.index input (Seq.length input - 1))))
             else (Machine input (ip + 1) mem, Nothing)
 
+partTwo :: Program -> Int
+partTwo program = go (processA, id) (processB, (+1)) 0
+  where
+    go (pa@(Machine a_input a_ip a_mem), fa) (pb@(Machine b_input b_ip b_mem), fb) cnt
+        | suspended pa && suspended pb = cnt
+        | otherwise =
+        case eval (program Vector.! a_ip) rcvHandler pa of
+            (pa', Nothing)          -> go (pb, fb) (pa', fa) cnt
+            (pa', Just (Sound x))   -> go (Machine (b_input Seq.|> x) b_ip b_mem, fb) (pa', fa) (fa cnt)
+            (pa', Just (Recover x)) -> go (pb, fb) (pa', fa) cnt
+
+    rcvHandler x (Machine input ip mem) =
+        if Seq.null input
+            then (Machine input ip mem, Nothing)
+            else (Machine (Seq.drop 1 input) (ip + 1) (Map.insert x (Seq.index input 0) mem), Just (Recover 0))
+
+    suspended :: Machine -> Bool
+    suspended m@(Machine _ ip _) = let (Machine _ ip' _, _) = eval (program Vector.! ip) rcvHandler m
+                                   in ip == ip'
+
+    processA = Machine Seq.empty 0 Map.empty
+    processB = Machine Seq.empty 0 (Map.singleton 'p' 1)
+
 main :: IO ()
 main = do
     program <- parseProgram <$> getContents
     print (partOne program)
+    print (partTwo program)
