@@ -28,19 +28,27 @@ parseInput = either (error . show) id . parse (particle `endBy` newline) ""
         digits <- read <$> many1 digit
         return (sign digits)
 
-partOne :: [Particle] -> Int
-partOne = fst . minimumBy (ordering `on` snd) . zip [0..]
+step :: Particle -> Particle
+step (Particle (px,py,pz) (vx,vy,vz) (ax,ay,az)) = Particle p' v' (ax,ay,az)
   where
-    ordering = mconcat [ comparing (manhattan . particleAcc)
-                       , comparing (manhattan . particleVel)
-                       , comparing (manhattan . particlePos)]
+    v'@(v'x, v'y, v'z) = (vx + ax, vy + ay, vz + az)
+    p' = (px + v'x, py + v'y, pz + v'z)
+
+partOne :: [Particle] -> Int
+partOne = fst . minimumBy (comparing (manhattan . particlePos . snd)) . (!! 1000) . iterate (map (\(i, p) -> (i, step p))) . zip [0..]
+  where
     manhattan (x, y, z) = abs x + abs y + abs z
 
 partTwo :: [Particle] -> Int
-partTwo = undefined
+partTwo = length . (!! 1000) . iterate go
+  where
+    go ps = map step ps'
+      where
+        ps' = concat . filter (null . tail) . groupBy ((==) `on` particlePos) . sortBy (comparing particlePos) $ ps
 
 main :: IO ()
 main = do
     input <- parseInput <$> getContents
     print (partOne input)
+    print (partTwo input)
 
