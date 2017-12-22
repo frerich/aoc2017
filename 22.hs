@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns #-}
+import           Data.List (unfoldr)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -18,7 +18,7 @@ main = do
 
 
 partOne :: Grid -> Pos -> Int
-partOne grid pos = count (== Infected) (simulate 10000 step grid pos North)
+partOne grid pos = count (== Infected) (take 10000 (simulate step grid pos North))
   where
     step grid pos =
         case state grid pos of
@@ -27,7 +27,7 @@ partOne grid pos = count (== Infected) (simulate 10000 step grid pos North)
 
 
 partTwo :: Grid -> Pos -> Int
-partTwo grid pos = count (== Infected) (simulate 10000000 step grid pos North)
+partTwo grid pos = count (== Infected) (take 10000000 (simulate step grid pos North))
   where
     step grid pos =
         case state grid pos of
@@ -64,15 +64,13 @@ state grid pos = Map.findWithDefault Clean pos grid
 
 
 -- | Run the grid simulation a number of times using an initial grid and a 'burst' function
-simulate :: Int -> (Grid -> Pos -> (State, Dir -> Dir)) -> Grid -> Pos -> Dir -> [State]
-simulate numBursts step = go 0 []
+simulate :: (Grid -> Pos -> (State, Dir -> Dir)) -> Grid -> Pos -> Dir -> [State]
+simulate step grid pos dir = unfoldr go (grid, pos, dir)
   where
-    go !n !acc !grid !pos !dir
-        | n == numBursts = acc
-        | otherwise     = let dir' = turn dir
-                           in go (n + 1) (flag : acc) (Map.insert pos flag grid) (forward dir' pos) dir'
+    go (grid, pos, dir) = Just (flag, (Map.insert pos flag grid, forward dir' pos, dir'))
       where
         (flag, turn) = step grid pos
+        dir' = turn dir
 
 
 -- | Given a string, return an grid of cells as well as the dimensions of the grid
