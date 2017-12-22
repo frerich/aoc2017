@@ -1,9 +1,10 @@
-import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 data Dir = North | South | West | East
+data State = Clean | Infected deriving Eq
 type Pos = (Int, Int)
-type Grid = Set Pos
+type Grid = Map Pos State
 
 main :: IO ()
 main = do
@@ -11,7 +12,7 @@ main = do
     print (partOne grid width height)
 
 partOne :: Grid -> Int -> Int -> Int
-partOne grid width height = count (== '#') (bursts grid width height)
+partOne grid width height = count (== Infected) (bursts grid width height)
 
 turnWest :: Dir -> Dir
 turnWest North    = West
@@ -31,16 +32,16 @@ forward South  (x,y) = (x,y+1)
 forward West  (x,y) = (x-1,y)
 forward East (x,y) = (x+1,y)
 
-infected :: Grid -> Pos -> Bool
-infected grid pos = pos `Set.member` grid
+state :: Grid -> Pos -> State
+state grid pos = Map.findWithDefault Clean pos grid
 
 infect :: Pos -> Grid -> Grid
-infect pos grid = pos `Set.insert` grid
+infect pos grid = Map.insert pos Infected grid
 
 cleanse :: Pos -> Grid -> Grid
-cleanse pos grid = pos `Set.delete` grid
+cleanse pos grid = Map.insert pos Clean grid
 
-bursts :: Grid -> Int -> Int -> [Char]
+bursts :: Grid -> Int -> Int -> [State]
 bursts grid width height = go 0 (grid, center, North) []
   where
     center = (width `div` 2, height `div` 2)
@@ -50,12 +51,12 @@ bursts grid width height = go 0 (grid, center, North) []
         | otherwise = go (n + 1) (update pos grid, forward dir' pos, dir') (ev : acc)
       where
         (update, dir', ev)
-            | infected grid pos = (cleanse, turnEast dir, '.')
-            | otherwise         = (infect, turnWest dir, '#')
+            | state grid pos == Infected = (cleanse, turnEast dir, Clean)
+            | otherwise                 = (infect, turnWest dir, Infected)
 
 
 parseGrid :: String -> (Grid, Int, Int)
-parseGrid s = (Set.fromList [p | (p,'#') <- grid], width, height)
+parseGrid s = (Map.fromList [(p,Infected) | (p,'#') <- grid], width, height)
   where
     rows = lines s
     width = length (head rows)
