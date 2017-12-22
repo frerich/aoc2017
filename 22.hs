@@ -1,76 +1,91 @@
 {-# LANGUAGE BangPatterns #-}
-import Data.Map (Map)
+import           Data.Map (Map)
 import qualified Data.Map as Map
+
 
 data Dir = North | South | West | East
 data State = Clean | Weakened | Infected | Flagged deriving Eq
 type Pos = (Int, Int)
 type Grid = Map Pos State
 
+
 main :: IO ()
 main = do
     (grid, width, height) <- parseGrid <$> getContents
-    print (partOne grid width height)
-    print (partTwo grid width height)
+    let center = (width `div` 2, height `div` 2)
+    print (partOne grid center)
+    print (partTwo grid center)
 
-partOne :: Grid -> Int -> Int -> Int
-partOne grid width height = count (== Infected) (bursts grid width height burst 10000)
-  where
-    burst grid pos dir
-        | state grid pos == Infected = (Clean, turnRight dir)
-        | otherwise                 = (Infected, turnLeft dir)
 
-partTwo :: Grid -> Int -> Int -> Int
-partTwo grid width height = count (== Infected) (bursts grid width height burst 10000000)
+partOne :: Grid -> Pos -> Int
+partOne grid pos = count (== Infected) (simulate 10000 step grid pos North)
   where
-    burst grid pos dir =
+    step grid pos =
         case state grid pos of
-            Clean -> (Weakened, turnLeft dir)
-            Weakened -> (Infected, dir)
-            Infected -> (Flagged, turnRight dir)
-            Flagged -> (Clean, turnLeft (turnLeft dir))
+            Infected  -> (Clean   , turnRight)
+            _         -> (Infected, turnLeft)
 
+
+partTwo :: Grid -> Pos -> Int
+partTwo grid pos = count (== Infected) (simulate 10000000 step grid pos North)
+  where
+    step grid pos =
+        case state grid pos of
+            Clean    -> (Weakened, turnLeft)
+            Weakened -> (Infected, id)
+            Infected -> (Flagged , turnRight )
+            Flagged  -> (Clean   , turnLeft . turnLeft )
+
+
+-- | Adjust a direction to the left
 turnLeft :: Dir -> Dir
-turnLeft North    = West
+turnLeft North = West
 turnLeft West  = South
-turnLeft South  = East
-turnLeft East = North
+turnLeft South = East
+turnLeft East  = North
 
+
+-- | Adjust a direction to the right (which is the same as turning left three times)
 turnRight :: Dir -> Dir
-turnRight North    = East
-turnRight East = South
-turnRight South  = West
-turnRight West  = North
+turnRight = turnLeft . turnLeft . turnLeft
 
+
+-- | Update a position according to the current direction
 forward :: Dir -> Pos -> Pos
-forward North    (x,y) = (x,y-1)
-forward South  (x,y) = (x,y+1)
-forward West  (x,y) = (x-1,y)
-forward East (x,y) = (x+1,y)
+forward North (x, y) = (x,     y - 1)
+forward South (x, y) = (x,     y + 1)
+forward West  (x, y) = (x - 1, y)
+forward East  (x, y) = (x + 1, y)
 
+
+-- | Yield the state of a cell in the infinite grid
 state :: Grid -> Pos -> State
 state grid pos = Map.findWithDefault Clean pos grid
 
-bursts :: Grid -> Int -> Int -> (Grid -> Pos -> Dir -> (State, Dir)) -> Int -> [State]
-bursts grid width height burst numBursts = go 0 (grid, center, North) []
+
+-- | Run the grid simulation a number of times using an initial grid and a 'burst' function
+simulate :: Int -> (Grid -> Pos -> (State, Dir -> Dir)) -> Grid -> Pos -> Dir -> [State]
+simulate numBursts step = go 0 []
   where
-    center = (width `div` 2, height `div` 2)
-
-    go !n (!grid, !pos, !dir) !acc
+    go !n !acc !grid !pos !dir
         | n == numBursts = acc
-        | otherwise = go (n + 1) (Map.insert pos flag grid, forward dir' pos, dir') (flag : acc)
+        | otherwise     = let dir' = turn dir
+                           in go (n + 1) (flag : acc) (Map.insert pos flag grid) (forward dir' pos) dir'
       where
-        (flag, dir') = burst grid pos dir
+        (flag, turn) = step grid pos
 
 
+-- | Given a string, return an grid of cells as well as the dimensions of the grid
 parseGrid :: String -> (Grid, Int, Int)
-parseGrid s = (Map.fromList [(p,Infected) | (p,'#') <- grid], width, height)
+parseGrid s = (Map.fromList [(p, Infected) | (p, '#') <- grid], width, height)
   where
     rows = lines s
     width = length (head rows)
     height = length rows
     grid = concat (zipWith (\y -> zipWith (\x c -> ((x,y),c)) [0..]) [0..] rows)
 
+
+-- | Yield the number of elements in a given sequence matching the given condition
 count :: (a -> Bool) -> [a] -> Int
 count p xs = length (filter p xs)
 
