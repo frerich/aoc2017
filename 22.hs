@@ -1,8 +1,9 @@
+{-# LANGUAGE BangPatterns #-}
 import Data.Map (Map)
 import qualified Data.Map as Map
 
 data Dir = North | South | West | East
-data State = Clean | Infected deriving Eq
+data State = Clean | Weakened | Infected | Flagged deriving Eq
 type Pos = (Int, Int)
 type Grid = Map Pos State
 
@@ -10,21 +11,36 @@ main :: IO ()
 main = do
     (grid, width, height) <- parseGrid <$> getContents
     print (partOne grid width height)
+    print (partTwo grid width height)
 
 partOne :: Grid -> Int -> Int -> Int
-partOne grid width height = count (== Infected) (bursts grid width height)
+partOne grid width height = count (== Infected) (bursts grid width height burst 10000)
+  where
+    burst grid pos dir
+        | state grid pos == Infected = (Clean, turnRight dir)
+        | otherwise                 = (Infected, turnLeft dir)
 
-turnWest :: Dir -> Dir
-turnWest North    = West
-turnWest West  = South
-turnWest South  = East
-turnWest East = North
+partTwo :: Grid -> Int -> Int -> Int
+partTwo grid width height = count (== Infected) (bursts grid width height burst 10000000)
+  where
+    burst grid pos dir =
+        case state grid pos of
+            Clean -> (Weakened, turnLeft dir)
+            Weakened -> (Infected, dir)
+            Infected -> (Flagged, turnRight dir)
+            Flagged -> (Clean, turnLeft (turnLeft dir))
 
-turnEast :: Dir -> Dir
-turnEast North    = East
-turnEast East = South
-turnEast South  = West
-turnEast West  = North
+turnLeft :: Dir -> Dir
+turnLeft North    = West
+turnLeft West  = South
+turnLeft South  = East
+turnLeft East = North
+
+turnRight :: Dir -> Dir
+turnRight North    = East
+turnRight East = South
+turnRight South  = West
+turnRight West  = North
 
 forward :: Dir -> Pos -> Pos
 forward North    (x,y) = (x,y-1)
@@ -35,24 +51,16 @@ forward East (x,y) = (x+1,y)
 state :: Grid -> Pos -> State
 state grid pos = Map.findWithDefault Clean pos grid
 
-infect :: Pos -> Grid -> Grid
-infect pos grid = Map.insert pos Infected grid
-
-cleanse :: Pos -> Grid -> Grid
-cleanse pos grid = Map.insert pos Clean grid
-
-bursts :: Grid -> Int -> Int -> [State]
-bursts grid width height = go 0 (grid, center, North) []
+bursts :: Grid -> Int -> Int -> (Grid -> Pos -> Dir -> (State, Dir)) -> Int -> [State]
+bursts grid width height burst numBursts = go 0 (grid, center, North) []
   where
     center = (width `div` 2, height `div` 2)
 
-    go n (grid, pos, dir) acc
-        | n == 10000 = acc
-        | otherwise = go (n + 1) (update pos grid, forward dir' pos, dir') (ev : acc)
+    go !n (!grid, !pos, !dir) !acc
+        | n == numBursts = acc
+        | otherwise = go (n + 1) (Map.insert pos flag grid, forward dir' pos, dir') (flag : acc)
       where
-        (update, dir', ev)
-            | state grid pos == Infected = (cleanse, turnEast dir, Clean)
-            | otherwise                 = (infect, turnWest dir, Infected)
+        (flag, dir') = burst grid pos dir
 
 
 parseGrid :: String -> (Grid, Int, Int)
